@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { authApi } from "@/api/auth";
+import { BACKEND_CONFIGURED } from "@/api/api";
 import { User, Mail, Pencil, Save, Loader2, Camera, Shield, Phone, Hash, AlertCircle } from "lucide-react";
 
 export default function ProfilePage() {
@@ -21,7 +22,7 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !BACKEND_CONFIGURED) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setFetching(true);
     authApi.getProfile(userId)

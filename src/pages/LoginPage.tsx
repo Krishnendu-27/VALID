@@ -130,8 +130,8 @@ export default function LoginPage() {
               type="button"
               onClick={() => { setIsRegister(false); setError(null); }}
               className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-mono font-bold rounded-lg transition-all ${!isRegister
-                  ? "bg-amber-500 text-white shadow"
-                  : "text-neutral-400 hover:text-white"
+                ? "bg-amber-500 text-white shadow"
+                : "text-neutral-400 hover:text-white"
                 }`}
             >
               <LogIn className="w-3.5 h-3.5" />
@@ -141,8 +141,8 @@ export default function LoginPage() {
               type="button"
               onClick={() => { setIsRegister(true); setError(null); }}
               className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-mono font-bold rounded-lg transition-all ${isRegister
-                  ? "bg-amber-500 text-white shadow"
-                  : "text-neutral-400 hover:text-white"
+                ? "bg-amber-500 text-white shadow"
+                : "text-neutral-400 hover:text-white"
                 }`}
             >
               <UserPlus className="w-3.5 h-3.5" />

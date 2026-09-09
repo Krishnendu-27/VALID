@@ -35,10 +35,40 @@ export default function EvidencePage() {
 
   const liveOverlays: CanvasOverlay[] = evidence?.canvasOverlays || [];
   const liveViolations: Violation[] = evidence?.violations || [];
-  const hasLive = liveOverlays.length > 0;
+
+  // Synthesize overlays from canvasOverlays and merged_fields with bounding boxes
+  const allOverlays: CanvasOverlay[] = [...liveOverlays];
+  if (evidence?.merged_fields) {
+    Object.entries(evidence.merged_fields).forEach(([fieldName, val]) => {
+      if (val?.source?.bbox && val.source.bbox.length >= 4) {
+        const imageType = (val.source.image || "front").toLowerCase();
+        // Check if already in canvasOverlays
+        const alreadyExists = allOverlays.some(
+          (o) => (o.image_type || "front").toLowerCase() === imageType && o.label?.toLowerCase() === fieldName.toLowerCase()
+        );
+        if (!alreadyExists) {
+          const isViolated = liveViolations.some((v) => v.field === fieldName || v.code === fieldName);
+          const type: "VALID" | "VIOLATION" | "REVIEW" = isViolated
+            ? "VIOLATION"
+            : (val.confidence !== undefined && val.confidence < 0.7)
+            ? "REVIEW"
+            : "VALID";
+
+          allOverlays.push({
+            image_type: imageType,
+            bbox: val.source.bbox,
+            type,
+            label: `${fieldName.replace(/_/g, " ")}: ${val.text || ""}`.trim(),
+          });
+        }
+      }
+    });
+  }
 
   // Filter overlays for current aspect
-  const filteredOverlays = liveOverlays.filter((o) => o.image_type === activeAspect);
+  const filteredOverlays = allOverlays.filter(
+    (o) => (o.image_type || "front").toLowerCase() === activeAspect.toLowerCase()
+  );
 
   // Draw overlays on canvas once loaded
   useEffect(() => {
@@ -64,36 +94,40 @@ export default function EvidencePage() {
         ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(width, i); ctx.stroke();
       }
 
-      if (hasLive) {
+      if (filteredOverlays.length > 0) {
         filteredOverlays.forEach((overlay) => {
           const isViolation = overlay.type === "VIOLATION";
           const isReview = overlay.type === "REVIEW";
 
+          // Strict status colors:
+          // Green = PASSED / VALID
+          // Red = FAILED / VIOLATION
+          // Amber = REQUIRES REVIEW
           const stroke = isViolation
-            ? "rgba(239,68,68,0.9)"
+            ? "rgba(239,68,68,0.95)"
             : isReview
-            ? "rgba(245,158,11,0.9)"
-            : "rgba(16,185,129,0.9)";
+            ? "rgba(245,158,11,0.95)"
+            : "rgba(16,185,129,0.95)";
 
           const fill = isViolation
-            ? "rgba(239,68,68,0.08)"
+            ? "rgba(239,68,68,0.12)"
             : isReview
-            ? "rgba(245,158,11,0.08)"
-            : "rgba(16,185,129,0.08)";
+            ? "rgba(245,158,11,0.12)"
+            : "rgba(16,185,129,0.12)";
 
           if (!overlay.bbox || overlay.bbox.length < 4) return;
           const [c0, c1, c2, c3] = overlay.bbox;
           const isNormalized = Math.max(c0, c1, c2, c3) <= 1.05;
           const x = isNormalized ? Math.min(c0, c2) * width : c0;
           const y = isNormalized ? Math.min(c1, c3) * height : c1;
-          const w = isNormalized ? Math.max(12, Math.abs(c2 - c0) * width) : c2;
-          const h = isNormalized ? Math.max(12, Math.abs(c3 - c1) * height) : c3;
+          const w = isNormalized ? Math.max(16, Math.abs(c2 - c0) * width) : c2;
+          const h = isNormalized ? Math.max(16, Math.abs(c3 - c1) * height) : c3;
 
           const len = Math.max(4, Math.min(8, w / 4, h / 4));
 
-          // HUD brackets
+          // HUD corner brackets
           ctx.strokeStyle = stroke;
-          ctx.lineWidth = 2;
+          ctx.lineWidth = 2.5;
           ctx.beginPath();
           ctx.moveTo(x + len, y); ctx.lineTo(x, y); ctx.lineTo(x, y + len);
           ctx.moveTo(x + w - len, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + len);
@@ -101,27 +135,27 @@ export default function EvidencePage() {
           ctx.moveTo(x + w - len, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + h - len);
           ctx.stroke();
 
-          // Backdrop
+          // Backdrop tint
           ctx.fillStyle = fill;
           ctx.fillRect(x, y, w, h);
 
-          // HUD Pill
+          // HUD Pill Tag with Status Color
           ctx.font = "bold 9px monospace";
-          const labelText = overlay.label || overlay.type;
+          const labelText = overlay.label || (isViolation ? "FAILED" : isReview ? "REVIEW" : "PASSED");
           const textW = ctx.measureText(labelText).width + 12;
           const pillY = Math.max(16, y - 4);
 
           ctx.fillStyle = stroke;
           ctx.beginPath();
-          ctx.roundRect(x, pillY - 14, textW, 14, 2);
+          ctx.roundRect(x, pillY - 14, Math.min(textW, 220), 14, 2);
           ctx.fill();
 
           ctx.fillStyle = "#ffffff";
-          ctx.fillText(labelText.toUpperCase().slice(0, 24), x + 6, pillY - 4);
+          ctx.fillText(labelText.toUpperCase().slice(0, 28), x + 6, pillY - 4);
 
           // Crosshairs for violation
           if (isViolation) {
-            ctx.strokeStyle = "rgba(239,68,68,0.3)";
+            ctx.strokeStyle = "rgba(239,68,68,0.4)";
             ctx.lineWidth = 0.5;
             ctx.beginPath();
             ctx.moveTo(x, y + h / 2); ctx.lineTo(x + w, y + h / 2);
@@ -140,7 +174,7 @@ export default function EvidencePage() {
       img.src = activeImageDetail.url;
       img.onload = () => {
         ctx.drawImage(img, 0, 0, width, height);
-        ctx.fillStyle = "rgba(2, 6, 23, 0.4)";
+        ctx.fillStyle = "rgba(2, 6, 23, 0.35)";
         ctx.fillRect(0, 0, width, height);
         drawOverlays();
       };
@@ -160,7 +194,7 @@ export default function EvidencePage() {
       ctx.fillRect(0, 0, width, height);
       drawOverlays();
     }
-  }, [loading, hasLive, filteredOverlays, activeAspect, evidence]);
+  }, [loading, filteredOverlays, activeAspect, evidence]);
 
   if (loading) {
     return (
@@ -170,9 +204,9 @@ export default function EvidencePage() {
     );
   }
 
-  const validCount = liveOverlays.filter((o) => o.type === "VALID").length;
-  const violationCount = liveOverlays.filter((o) => o.type === "VIOLATION").length;
-  const reviewCount = liveOverlays.filter((o) => o.type === "REVIEW").length;
+  const validCount = allOverlays.filter((o) => o.type === "VALID").length;
+  const violationCount = allOverlays.filter((o) => o.type === "VIOLATION").length;
+  const reviewCount = allOverlays.filter((o) => o.type === "REVIEW").length;
 
   return (
     <div className="p-4 sm:p-6 xl:px-8 space-y-6 max-w-7xl mx-auto">
@@ -188,9 +222,11 @@ export default function EvidencePage() {
             <Layers className="w-6 h-6 text-amber-400 dark:text-amber-300" />
             Visual Evidence Canvas
           </h1>
-          <p className="text-neutral-500 dark:text-neutral-400 text-sm mt-0.5">
-            Spatial defect highlights: 🟢 Valid ({validCount}) · 🔴 Violation ({violationCount}) · 🟡 Review ({reviewCount})
-          </p>
+          <div className="flex items-center gap-3 mt-1.5 text-xs font-mono font-bold">
+            <span className="text-emerald-600 dark:text-emerald-400">✓ {validCount} PASSED</span>
+            <span className="text-red-600 dark:text-red-400">✗ {violationCount} FAILED</span>
+            {reviewCount > 0 && <span className="text-amber-600 dark:text-amber-400">⚠ {reviewCount} REQUIRES REVIEW</span>}
+          </div>
         </div>
         <button
           id="go-to-report-btn"
@@ -221,17 +257,19 @@ export default function EvidencePage() {
         </div>
 
         {/* Legend */}
-        <div className="flex gap-4 flex-wrap">
-          {[
-            { cls: "bg-emerald-500", label: `Compliant (${validCount})` },
-            { cls: "bg-red-500", label: `Violation (${violationCount})` },
-            { cls: "bg-amber-500", label: `Review (${reviewCount})` },
-          ].map((l) => (
-            <div key={l.label} className="flex items-center gap-2 text-xs font-mono text-neutral-700 dark:text-neutral-300">
-              <div className={`w-3 h-3 rounded-sm ${l.cls}`} />
-              {l.label}
-            </div>
-          ))}
+        <div className="flex gap-4 flex-wrap text-xs font-mono font-bold">
+          <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+            <div className="w-3 h-3 rounded-sm bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+            ✓ PASSED ({validCount})
+          </div>
+          <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+            <div className="w-3 h-3 rounded-sm bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
+            ✗ FAILED ({violationCount})
+          </div>
+          <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+            <div className="w-3 h-3 rounded-sm bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
+            ⚠ REQUIRES REVIEW ({reviewCount})
+          </div>
         </div>
       </div>
 

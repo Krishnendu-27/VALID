@@ -10,6 +10,7 @@ type DisplayRule = {
   ruleId: string;
   name: string;
   status: "pass" | "fail" | "warning";
+  category?: string;
   description: string;
 };
 
@@ -19,7 +20,7 @@ const statusConfig: Record<
 > = {
   pass:    { icon: CheckCircle2,  color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20", label: "Pass" },
   fail:    { icon: XCircle,       color: "text-red-650 dark:text-red-400",     bg: "bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20",         label: "Fail" },
-  warning: { icon: AlertTriangle, color: "text-amber-600 dark:text-amber-400",   bg: "bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20",     label: "Warning" },
+  warning: { icon: AlertTriangle, color: "text-amber-600 dark:text-amber-400",   bg: "bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20",     label: "Review Required" },
 };
 
 export default function CompliancePage() {
@@ -28,6 +29,7 @@ export default function CompliancePage() {
   const [liveRules, setLiveRules] = useState<DisplayRule[]>([]);
   const [liveScore, setLiveScore] = useState<number | null>(null);
   const [productName, setProductName] = useState<string>("Packaging Target");
+  const [activeFilter, setActiveFilter] = useState<"all" | "fail" | "warning" | "pass">("all");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -43,15 +45,32 @@ export default function CompliancePage() {
           const report = res.data.data;
           setProductName(report.product?.name || "Inspected Commodity");
           setLiveScore(report.inspection.complianceScore);
+          
           const rawRules = report.compliance?.ruleResults || [];
-          if (rawRules.length > 0) {
-            const mapped: DisplayRule[] = rawRules.map((r: RuleResult) => ({
-              ruleId: r.ruleCode,
-              name: r.ruleName,
-              status: r.passed ? "pass" : r.severity === "WARNING" ? "warning" : "fail",
-              description: r.issue || (r.passed ? "Regulatory requirement fully verified." : `${r.ruleName} requirement failed or missing.`),
-            }));
-            setLiveRules(mapped);
+          const rawReviewRequired = 
+            report.compliance?.review_required || 
+            report.inspection?.review_required || 
+            [];
+
+          const mappedRules: DisplayRule[] = rawRules.map((r: RuleResult) => ({
+            ruleId: r.ruleCode,
+            name: r.ruleName,
+            status: r.passed ? "pass" : r.severity === "WARNING" ? "warning" : "fail",
+            description: r.issue || (r.passed ? "Regulatory requirement fully verified." : `${r.ruleName} requirement failed or missing.`),
+          }));
+
+          const mappedReviews: DisplayRule[] = rawReviewRequired.map((rev) => ({
+            ruleId: rev.rule_id,
+            name: rev.rule_name,
+            status: "warning",
+            category: rev.category ? rev.category.replace(/_/g, " ") : undefined,
+            description: rev.message || "Manual officer verification required.",
+          }));
+
+          // Merge standard evaluated rules and review required rules
+          const allRules = [...mappedRules, ...mappedReviews];
+          if (allRules.length > 0) {
+            setLiveRules(allRules);
           }
         }
       } catch (err) {
@@ -69,6 +88,10 @@ export default function CompliancePage() {
   const passed   = rules.filter((r) => r.status === "pass").length;
   const failed   = rules.filter((r) => r.status === "fail").length;
   const warnings = rules.filter((r) => r.status === "warning").length;
+
+  const filteredRules = activeFilter === "all"
+    ? rules
+    : rules.filter((r) => r.status === activeFilter);
 
   if (loading) {
     return (
@@ -136,7 +159,7 @@ export default function CompliancePage() {
             <div className="flex gap-4 mt-2 text-sm font-mono font-black">
               <span className="text-emerald-600 dark:text-emerald-400">✓ {passed} PASSED</span>
               <span className="text-red-600 dark:text-red-400">✗ {failed} FAILED</span>
-              {warnings > 0 && <span className="text-amber-600 dark:text-amber-400">⚠ {warnings} WARNINGS</span>}
+              {warnings > 0 && <span className="text-amber-600 dark:text-amber-400">⚠ {warnings} REQUIRES REVIEW</span>}
             </div>
           </div>
           <div className="flex-1 ml-0 md:ml-4">
@@ -150,10 +173,58 @@ export default function CompliancePage() {
         </div>
       )}
 
+      {/* Filter Tabs */}
+      {rules.length > 0 && (
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs font-mono">
+          <button
+            onClick={() => setActiveFilter("all")}
+            className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
+              activeFilter === "all"
+                ? "bg-neutral-900 dark:bg-white text-white dark:text-black"
+                : "bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:text-white"
+            }`}
+          >
+            All Rules ({rules.length})
+          </button>
+          <button
+            onClick={() => setActiveFilter("fail")}
+            className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
+              activeFilter === "fail"
+                ? "bg-red-600 text-white"
+                : "bg-red-500/10 text-red-500 hover:bg-red-500/20"
+            }`}
+          >
+            Violations ({failed})
+          </button>
+          {warnings > 0 && (
+            <button
+              onClick={() => setActiveFilter("warning")}
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
+                activeFilter === "warning"
+                  ? "bg-amber-500 text-black"
+                  : "bg-amber-500/10 text-amber-500 hover:bg-amber-500/20"
+              }`}
+            >
+              Requires Review ({warnings})
+            </button>
+          )}
+          <button
+            onClick={() => setActiveFilter("pass")}
+            className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
+              activeFilter === "pass"
+                ? "bg-emerald-600 text-white"
+                : "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20"
+            }`}
+          >
+            Passed ({passed})
+          </button>
+        </div>
+      )}
+
       {/* Rules list */}
-      {rules.length > 0 ? (
-        <div className="space-y-5">
-          {rules.map((rule) => {
+      {filteredRules.length > 0 ? (
+        <div className="space-y-4">
+          {filteredRules.map((rule) => {
             const cfg = statusConfig[rule.status];
             const Icon = cfg.icon;
             const isPass = rule.status === "pass";
@@ -175,6 +246,11 @@ export default function CompliancePage() {
                       <span className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${cfg.bg} ${cfg.color}`}>
                         {cfg.label}
                       </span>
+                      {rule.category && (
+                        <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 border border-neutral-200 dark:border-neutral-700">
+                          {rule.category}
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1.5 leading-relaxed font-mono">{rule.description}</p>
                   </div>
@@ -195,9 +271,9 @@ export default function CompliancePage() {
       ) : (
         <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-12 flex flex-col items-center gap-3 text-center">
           <ShieldCheck className="w-12 h-12 text-slate-350 dark:text-neutral-700" />
-          <p className="text-neutral-700 dark:text-neutral-300 font-medium">No compliance data yet</p>
+          <p className="text-neutral-700 dark:text-neutral-300 font-medium">No rules found for this filter</p>
           <p className="text-neutral-500 text-sm max-w-xs">
-            Click "Run Compliance Check" to evaluate this product against all regulatory rules.
+            Select a different filter tab above to view other compliance categories.
           </p>
         </div>
       )}

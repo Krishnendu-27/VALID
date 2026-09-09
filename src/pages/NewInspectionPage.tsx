@@ -1,8 +1,10 @@
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDropzone } from "react-dropzone";
 import { ImagePlus, Camera, X, Loader2, ChevronRight, Focus, ShieldCheck, AlertCircle } from "lucide-react";
 import { inspectionApi } from "@/api/inspection";
+import { optimizeImageForOCR } from "@/lib/imageOptimizer";
+import ScanLoadingOverlay from "@/components/ScanLoadingOverlay";
 
 type Side = "front" | "back" | "side";
 const SIDES: { key: Side; label: string; hint: string }[] = [
@@ -18,21 +20,6 @@ export default function NewInspectionPage() {
   const [previews, setPreviews] = useState<Record<Side, string | null>>({ front: null, back: null, side: null });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [scanStep, setScanStep] = useState(0);
-
-  useEffect(() => {
-    if (!loading) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setScanStep(0);
-      return;
-    }
-    const timer1 = setTimeout(() => setScanStep(1), 1500);
-    const timer2 = setTimeout(() => setScanStep(2), 3000);
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-    };
-  }, [loading]);
 
   const handleDrop = useCallback((side: Side, files: File[]) => {
     const file = files[0];
@@ -57,10 +44,17 @@ export default function NewInspectionPage() {
     setError(null);
 
     try {
+      // Optimize images on client to prevent Railway OOM memory crashes and timeout errors
+      const [optFront, optBack, optSide] = await Promise.all([
+        optimizeImageForOCR(images.front!),
+        optimizeImageForOCR(images.back!),
+        optimizeImageForOCR(images.side!),
+      ]);
+
       const res = await inspectionApi.scan({
-        front: images.front!,
-        back: images.back!,
-        side: images.side!,
+        front: optFront,
+        back: optBack,
+        side: optSide,
         productName: productName.trim() || undefined,
       });
 
@@ -90,48 +84,10 @@ export default function NewInspectionPage() {
   return (
     <>
       {loading && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center pb-24 bg-neutral-900/95 backdrop-blur-md">
-          <style>{`
-            @keyframes scanline {
-              0% { top: -10%; opacity: 0; }
-              10% { opacity: 1; }
-              90% { opacity: 1; }
-              100% { top: 110%; opacity: 0; }
-            }
-          `}</style>
-          <div className="flex flex-col items-center">
-            <div className="relative w-48 h-48 mb-8 rounded-full border border-amber-400/30 overflow-hidden bg-neutral-900 shadow-[0_0_40px_rgba(99,102,241,0.2)]">
-              {/* Grid background */}
-              <div className="absolute inset-0 bg-[linear-gradient(rgba(99,102,241,0.15)_1px,transparent_1px),linear-gradient(90deg,rgba(99,102,241,0.15)_1px,transparent_1px)] bg-[size:20px_20px]" />
-              
-              {/* Radar sweep */}
-              <div className="absolute inset-0 bg-[conic-gradient(from_90deg_at_50%_50%,rgba(99,102,241,0)_0%,rgba(99,102,241,0)_80%,rgba(99,102,241,0.6)_100%)] rounded-full animate-[spin_2s_linear_infinite]" />
-              
-              {/* Horizontal scan line */}
-              <div className="absolute left-0 w-full h-[2px] bg-amber-400 shadow-[0_0_15px_rgba(34,211,238,0.9)]" style={{ animation: 'scanline 2s linear infinite' }} />
-              
-              {/* Center target */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Focus className="w-12 h-12 text-amber-400 opacity-80" />
-              </div>
-            </div>
-            
-            <h2 className="text-2xl font-black text-white tracking-widest uppercase mb-6 font-mono animate-pulse">
-              Scanning Images...
-            </h2>
-            <div className="flex flex-col items-center gap-5 font-mono text-xs uppercase tracking-widest">
-              <p className={`transition-all duration-700 ${scanStep === 0 ? "text-amber-200 font-bold scale-105 animate-[pulse_2s_ease-in-out_infinite]" : "text-amber-400/50"}`}>
-                {scanStep > 0 ? "Uploading to Secure Storage [OK]" : "Uploading to Secure Storage..."}
-              </p>
-              <p className={`transition-all duration-700 ${scanStep === 1 ? "text-amber-200 font-bold scale-105 animate-[pulse_2s_ease-in-out_infinite]" : scanStep > 1 ? "text-amber-400/50" : "opacity-0 translate-y-2"}`}>
-                {scanStep > 1 ? "Running Neural OCR Pipeline [DONE]" : "Running Neural OCR Pipeline..."}
-              </p>
-              <p className={`transition-all duration-700 ${scanStep === 2 ? "text-amber-200 font-bold scale-105 animate-[pulse_2s_ease-in-out_infinite]" : "opacity-0 translate-y-2"}`}>
-                Extracting Compliance Data...
-              </p>
-            </div>
-          </div>
-        </div>
+        <ScanLoadingOverlay
+          previews={previews}
+          productName={productName}
+        />
       )}
       
       <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-6">

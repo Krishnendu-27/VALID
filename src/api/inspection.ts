@@ -91,6 +91,24 @@ export interface EvidenceData {
   violations?: Violation[];
 }
 
+export interface ReviewRequiredRule {
+  rule_id: string;
+  rule_name: string;
+  category?: string;
+  status: "REVIEW" | string;
+  message: string;
+  severity?: string;
+  violation_code?: string;
+  evidence?: {
+    field?: string | null;
+    value?: unknown;
+    reason?: string;
+    required_metadata?: string;
+    match_confidence?: number;
+    machine_method?: string;
+  };
+}
+
 export interface ReportData {
   reportTitle: string;
   generatedAt: string;
@@ -100,6 +118,7 @@ export interface ReportData {
     complianceScore: number;
     createdAt: string;
     updatedAt?: string;
+    review_required?: ReviewRequiredRule[];
   };
   officer: {
     id: string;
@@ -121,6 +140,7 @@ export interface ReportData {
     ruleResults: RuleResult[];
     violations: Violation[];
     legalActionCitations: LegalCitation[];
+    review_required?: ReviewRequiredRule[];
   };
 }
 
@@ -129,7 +149,15 @@ export interface ScanResponseData {
   complianceScore: number;
   status: string;
   ruleResults: RuleResult[];
-  inspection: Record<string, unknown>;
+  review_required?: ReviewRequiredRule[];
+  inspection: {
+    officerId?: string;
+    productName?: string;
+    merged_fields?: Record<string, ExtractedField | null>;
+    images?: Record<string, ImageDetail | null>;
+    review_required?: ReviewRequiredRule[];
+    [key: string]: unknown;
+  };
 }
 
 export const inspectionApi = {
@@ -150,6 +178,7 @@ export const inspectionApi = {
       form,
       {
         headers: { "Content-Type": "multipart/form-data" },
+        timeout: 120000, // 2 minutes for OCR pipeline & Cloudinary uploads
       }
     );
   },

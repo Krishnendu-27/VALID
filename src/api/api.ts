@@ -14,7 +14,7 @@ const baseURL = import.meta.env.DEV
 export const api = axios.create({
   baseURL,
   withCredentials: true,
-  timeout: 15000,
+  timeout: 60000,
 });
 
 // Request interceptor — attach JWT, block if no backend configured

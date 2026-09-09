@@ -51,14 +51,14 @@ export default function AIAnalysisPage() {
     // Resolve status color based on box.status field or confidence fallback
     const getBoxColors = (box: typeof rawBoxes[0]) => {
       const s = (box as { status?: string }).status?.toLowerCase();
-      if (s === "compliant" || s === "pass" || s === "ok" || (!s && box.confidence >= 0.8)) {
-        return { stroke: "rgba(34,197,94,0.95)", fill: "rgba(34,197,94,0.08)", text: "rgba(34,197,94,0.95)", label: "COMPLIANT" };
+      if (s === "compliant" || s === "pass" || s === "ok" || s === "valid" || (!s && box.confidence >= 0.8)) {
+        return { stroke: "rgba(16,185,129,0.95)", fill: "rgba(16,185,129,0.12)", text: "rgba(16,185,129,0.95)", label: "PASSED" };
       }
       if (s === "violation" || s === "fail" || s === "error" || (!s && box.confidence < 0.5)) {
-        return { stroke: "rgba(239,68,68,0.95)", fill: "rgba(239,68,68,0.08)", text: "rgba(239,68,68,0.95)", label: "VIOLATION" };
+        return { stroke: "rgba(239,68,68,0.95)", fill: "rgba(239,68,68,0.12)", text: "rgba(239,68,68,0.95)", label: "FAILED" };
       }
       // review / warning
-      return { stroke: "rgba(234,179,8,0.95)", fill: "rgba(234,179,8,0.08)", text: "rgba(234,179,8,0.95)", label: "REVIEW" };
+      return { stroke: "rgba(245,158,11,0.95)", fill: "rgba(245,158,11,0.12)", text: "rgba(245,158,11,0.95)", label: "REQUIRES REVIEW" };
     };
 
     const drawHudOverlays = () => {

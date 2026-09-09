@@ -64,36 +64,42 @@ const StatCard = ({
   label,
   value,
   colorClass,
-  glowClass,
   sub,
-  isHero,
   progress,
 }: {
   icon: React.ElementType;
   label: string;
   value: string | number;
   colorClass: string;
-  glowClass: string;
+  glowClass?: string;
   sub?: string;
   isHero?: boolean;
   progress?: number;
 }) => (
-  <div className={`relative bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-5 flex flex-col justify-between hover:border-neutral-300 dark:hover:border-neutral-700 transition-all duration-300 hover:scale-[1.02] group hover:shadow-lg ${glowClass}`}>
-    <div className="flex items-start gap-4 w-full">
-      <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 text-white shadow-md transition-transform group-hover:scale-110 ${colorClass}`}>
-        <Icon className="w-5 h-5" />
+  <div className="relative bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-5 flex flex-col gap-3 hover:border-neutral-300 dark:hover:border-neutral-700 transition-all duration-300 hover:scale-[1.02] group hover:shadow-xl overflow-hidden">
+    {/* Subtle glow blob */}
+    <div className={`absolute -top-4 -right-4 w-20 h-20 rounded-full blur-2xl opacity-20 ${colorClass}`} />
+    {/* Top row: icon + label */}
+    <div className="flex items-center gap-2.5">
+      <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-white shadow-md transition-transform group-hover:scale-110 ${colorClass}`}>
+        <Icon className="w-4.5 h-4.5" />
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-neutral-500 dark:text-neutral-400 text-xs font-semibold uppercase tracking-wider mb-0.5">{label}</p>
-        <p className={`font-black text-neutral-900 dark:text-white tracking-tight ${isHero ? 'text-4xl' : 'text-2xl'}`}>{value}</p>
-        {sub && <p className="text-neutral-400 dark:text-neutral-500 text-xs font-mono mt-0.5">{sub}</p>}
-      </div>
+      <p className="text-neutral-500 dark:text-neutral-400 text-[11px] font-bold uppercase tracking-wider leading-tight">{label}</p>
     </div>
-    {isHero && progress !== undefined && (
-      <div className="mt-4 w-full bg-neutral-100 dark:bg-neutral-800 rounded-full h-2.5 overflow-hidden">
-        <div className={`h-full rounded-full ${colorClass.split(" ")[0]} transition-all duration-1000`} style={{ width: `${progress}%` }} />
-      </div>
-    )}
+    {/* Value */}
+    <p className="text-3xl font-black text-neutral-900 dark:text-white tracking-tight leading-none">{value}</p>
+    {/* Sub + optional progress */}
+    <div className="space-y-1.5">
+      {sub && <p className="text-neutral-400 dark:text-neutral-500 text-[10px] font-mono uppercase tracking-widest">{sub}</p>}
+      {progress !== undefined && (
+        <div className="w-full bg-neutral-100 dark:bg-neutral-800 rounded-full h-1.5 overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-1000 ${colorClass}`}
+            style={{ width: `${Math.min(progress, 100)}%` }}
+          />
+        </div>
+      )}
+    </div>
   </div>
 );
 
@@ -174,55 +180,54 @@ export default function DashboardPage() {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         <StatCard
           icon={Package}
           label="Total Scanned"
           value={totalScanned}
           colorClass="bg-gradient-to-br from-amber-400 to-amber-500"
-          glowClass="hover:shadow-amber-400/5 dark:hover:shadow-amber-400/10"
-          sub="LIVE DB"
+          glowClass=""
+          sub="ALL TIME"
         />
         <StatCard
           icon={CheckCircle2}
           label="Compliant"
           value={compliantCount}
           colorClass="bg-gradient-to-br from-emerald-500 to-emerald-600"
-          glowClass="hover:shadow-emerald-500/5 dark:hover:shadow-emerald-500/10"
-          sub={`${Math.round((compliantCount / (totalScanned || 1)) * 100)}% PASS`}
+          glowClass=""
+          sub={`${Math.round((compliantCount / (totalScanned || 1)) * 100)}% PASS RATE`}
         />
         <StatCard
           icon={XCircle}
-          label="Non-Compliant"
+          label="Warnings"
           value={nonCompliantCount}
           colorClass="bg-gradient-to-br from-amber-500 to-amber-600"
-          glowClass="hover:shadow-amber-500/5 dark:hover:shadow-amber-500/10"
-          sub="WARNINGS"
+          glowClass=""
+          sub="NON-COMPLIANT"
         />
         <StatCard
           icon={AlertTriangle}
           label="Critical"
           value={criticalCount}
-          colorClass="bg-gradient-to-br from-red-500 to-red-650"
-          glowClass="hover:shadow-red-500/5 dark:hover:shadow-red-500/10"
-          sub="DEFECTS"
+          colorClass="bg-gradient-to-br from-red-500 to-red-600"
+          glowClass=""
+          sub="VIOLATIONS"
         />
         <StatCard
           icon={TrendingUp}
-          label="Compliance %"
+          label="Avg Score"
           value={avgCompliance}
-          colorClass="bg-gradient-to-br from-neutral-700 to-neutral-800"
-          glowClass="hover:shadow-neutral-500/5 dark:hover:shadow-neutral-500/10"
-          sub="AVG RATING"
-          isHero={true}
+          colorClass="bg-gradient-to-br from-violet-500 to-violet-600"
+          glowClass=""
+          sub="COMPLIANCE RATE"
           progress={parseFloat(avgCompliance)}
         />
         <StatCard
           icon={ClipboardList}
-          label="Current Month"
+          label="This Month"
           value={thisMonthCount}
-          colorClass="bg-gradient-to-br from-amber-500 to-amber-600"
-          glowClass="hover:shadow-amber-500/5 dark:hover:shadow-amber-500/10"
+          colorClass="bg-gradient-to-br from-sky-500 to-sky-600"
+          glowClass=""
           sub="SCAN RATE"
         />
       </div>

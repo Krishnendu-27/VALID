@@ -12,10 +12,9 @@ import {
   Sun,
   Moon,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { useThemeStore } from "@/store/themeStore";
-import { authApi } from "@/api/auth";
 
 const navItems = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -25,34 +24,12 @@ const navItems = [
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, logout, setUser } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const { theme, toggleTheme } = useThemeStore();
   const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  useEffect(() => {
-    const userId = user?.id || user?._id;
-    if (userId && !user?.avatarUrl) {
-      authApi
-        .getProfile(userId)
-        .then((res) => {
-          const profile = res.data?.data || res.data;
-          if (profile && profile.avatarUrl) {
-            setUser({
-              ...user,
-              avatarUrl: profile.avatarUrl,
-              phone: profile.phone || user.phone,
-              name: profile.name || user.name,
-              officerId: profile.officerId || user.officerId,
-            });
-          }
-        })
-        .catch(() => {});
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, user?._id, user?.avatarUrl, setUser]);
 
   const handleLogout = () => {
     logout();

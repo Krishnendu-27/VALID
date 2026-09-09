@@ -291,7 +291,7 @@ function DropZone({
           <div className="flex flex-col items-center justify-center gap-3 p-4 select-none">
             <div className="w-12 h-12 rounded-xl bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center transition-transform group-hover:scale-110">
               <ImagePlus className={`hidden sm:block w-6 h-6 ${isDragActive ? "text-amber-500 dark:text-amber-300" : "text-neutral-400 dark:text-neutral-600"}`} />
-              <Camera className={`sm:block hidden sm:hidden w-6 h-6 !block ${isDragActive ? "text-amber-500 dark:text-amber-300" : "text-neutral-400 dark:text-neutral-600"}`} />
+              <Camera className={`block sm:hidden w-6 h-6 ${isDragActive ? "text-amber-500 dark:text-amber-300" : "text-neutral-400 dark:text-neutral-600"}`} />
             </div>
             <p className="text-sm font-bold text-neutral-800 dark:text-neutral-300 font-mono uppercase tracking-wide">{label}</p>
             <p className="text-[10px] text-neutral-400 dark:text-neutral-500 font-mono uppercase tracking-widest text-center">{hint}</p>

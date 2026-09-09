@@ -159,15 +159,15 @@ export default function CompliancePage() {
       {/* Score banner */}
       {score !== null && (
         <div className={`relative rounded-2xl border p-6 flex flex-col md:flex-row md:items-center gap-5 overflow-hidden transition-all duration-500
-          ${score >= 70
+          ${score >= 50
             ? "bg-emerald-50/30 dark:bg-emerald-950/10 border-emerald-200 dark:border-emerald-900/30 text-emerald-800 dark:text-emerald-400"
             : "bg-red-50/30 dark:bg-red-950/10 border-red-200 dark:border-red-900/30 text-red-700 dark:text-red-400"}`}
         >
           {/* Neon vertical marker */}
-          <div className={`absolute top-0 left-0 w-1.5 h-full ${score >= 70 ? "bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.6)]" : "bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.6)]"}`} />
+          <div className={`absolute top-0 left-0 w-1.5 h-full ${score >= 50 ? "bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.6)]" : "bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.6)]"}`} />
 
           <div className="flex items-baseline gap-1">
-            <span className={`text-4xl font-black font-mono ${score >= 70 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
+            <span className={`text-4xl font-black font-mono ${score >= 50 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
               {score}
             </span>
             <span className="text-xs font-bold text-neutral-400 font-mono">%</span>
@@ -183,7 +183,7 @@ export default function CompliancePage() {
           <div className="flex-1 ml-0 md:ml-4">
             <div className="h-2 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
               <div
-                className={`h-full rounded-full transition-all duration-1000 ${score >= 70 ? "bg-emerald-500" : "bg-red-500"}`}
+                className={`h-full rounded-full transition-all duration-1000 ${score >= 50 ? "bg-emerald-500" : "bg-red-500"}`}
                 style={{ width: `${score}%` }}
               />
             </div>

@@ -44,7 +44,11 @@ export default function ReportPage() {
   };
 
   const score = report?.inspection.complianceScore !== undefined ? report.inspection.complianceScore : 0;
-  const isViolation = report ? report.inspection.status === "NON-COMPLIANT" || score < 70 : score < 70;
+  const isViolation = report
+    ? String(report.inspection.status || "").toUpperCase().includes("NON") ||
+      String(report.inspection.status || "").toUpperCase().includes("FAIL") ||
+      String(report.inspection.status || "").toUpperCase().includes("CRITICAL")
+    : false;
 
   const rawRules = report?.compliance.ruleResults || [];
   const rules = rawRules.map((r: RuleResult) => ({

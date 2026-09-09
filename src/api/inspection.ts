@@ -89,6 +89,7 @@ export interface EvidenceData {
   merged_fields?: Record<string, ExtractedField | null>;
   canvasOverlays?: CanvasOverlay[];
   violations?: Violation[];
+  review_required?: ReviewRequiredRule[];
 }
 
 export interface ReviewRequiredRule {
@@ -106,6 +107,13 @@ export interface ReviewRequiredRule {
     required_metadata?: string;
     match_confidence?: number;
     machine_method?: string;
+    reference_date?: string;
+    raw_mfg_text?: string;
+    raw_expiry_text?: string;
+    bbox?: number[] | null;
+    confidence?: number;
+    minimum?: number | null;
+    maximum?: number | null;
   };
 }
 

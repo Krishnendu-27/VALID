@@ -19,9 +19,23 @@ export default function EvidencePage() {
         return;
       }
       try {
-        const res = await inspectionApi.getEvidence(id);
-        if (isMounted && res.data?.data) {
-          setEvidence(res.data.data);
+        const [evRes, repRes] = await Promise.all([
+          inspectionApi.getEvidence(id).catch(() => null),
+          inspectionApi.getReport(id).catch(() => null),
+        ]);
+        if (isMounted) {
+          const evData = evRes?.data?.data || ({} as EvidenceData);
+          const repData = repRes?.data?.data;
+          const reviews =
+            evData.review_required ||
+            repData?.compliance?.review_required ||
+            repData?.inspection?.review_required;
+
+          setEvidence({
+            ...evData,
+            inspectionId: id,
+            review_required: reviews,
+          });
         }
       } catch (err) {
         console.warn("Falling back to mock overlays:", err);
@@ -36,15 +50,43 @@ export default function EvidencePage() {
   const liveOverlays: CanvasOverlay[] = evidence?.canvasOverlays || [];
   const liveViolations: Violation[] = evidence?.violations || [];
 
-  // Synthesize overlays from canvasOverlays and merged_fields with bounding boxes
+  // Synthesize overlays from raw_ocr_boxes, canvasOverlays, merged_fields, AND review_required bboxes
   const allOverlays: CanvasOverlay[] = [...liveOverlays];
+
+  // 1. Map raw OCR detected boxes from each aspect image
+  if (evidence?.images) {
+    Object.entries(evidence.images).forEach(([aspectKey, imgDetail]) => {
+      const boxes = imgDetail?.raw_ocr_boxes || [];
+      boxes.forEach((box) => {
+        if (box.bbox && box.bbox.length >= 4) {
+          const isViolated = liveViolations.some((v) => 
+            v.description?.toLowerCase().includes(box.text?.toLowerCase() || "") ||
+            v.field?.toLowerCase() === box.text?.toLowerCase()
+          );
+          const type: "VALID" | "VIOLATION" | "REVIEW" = isViolated
+            ? "VIOLATION"
+            : (box.confidence !== undefined && box.confidence < 0.75)
+            ? "REVIEW"
+            : "VALID";
+
+          allOverlays.push({
+            image_type: aspectKey.toLowerCase(),
+            bbox: box.bbox,
+            type,
+            label: box.text || type,
+          });
+        }
+      });
+    });
+  }
+
+  // 2. Map bounding boxes from merged_fields
   if (evidence?.merged_fields) {
     Object.entries(evidence.merged_fields).forEach(([fieldName, val]) => {
       if (val?.source?.bbox && val.source.bbox.length >= 4) {
         const imageType = (val.source.image || "front").toLowerCase();
-        // Check if already in canvasOverlays
         const alreadyExists = allOverlays.some(
-          (o) => (o.image_type || "front").toLowerCase() === imageType && o.label?.toLowerCase() === fieldName.toLowerCase()
+          (o) => (o.image_type || "front").toLowerCase() === imageType && o.label?.toLowerCase().includes(fieldName.toLowerCase())
         );
         if (!alreadyExists) {
           const isViolated = liveViolations.some((v) => v.field === fieldName || v.code === fieldName);
@@ -59,6 +101,26 @@ export default function EvidencePage() {
             bbox: val.source.bbox,
             type,
             label: `${fieldName.replace(/_/g, " ")}: ${val.text || ""}`.trim(),
+          });
+        }
+      }
+    });
+  }
+
+  // 3. Map bounding boxes from review_required rules (e.g. PC-007, PC-014)
+  if (evidence?.review_required) {
+    evidence.review_required.forEach((rev) => {
+      if (rev.evidence?.bbox && rev.evidence.bbox.length >= 4) {
+        const alreadyExists = allOverlays.some(
+          (o) => o.label?.includes(rev.rule_name) || o.label?.includes(rev.rule_id)
+        );
+        if (!alreadyExists) {
+          const textSnippet = rev.evidence.raw_expiry_text || rev.evidence.raw_mfg_text || rev.evidence.value || "";
+          allOverlays.push({
+            image_type: "front",
+            bbox: rev.evidence.bbox,
+            type: "REVIEW",
+            label: `${rev.rule_id}: ${rev.rule_name}${textSnippet ? ` (${textSnippet})` : ""}`.trim(),
           });
         }
       }

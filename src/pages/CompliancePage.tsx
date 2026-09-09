@@ -11,7 +11,23 @@ type DisplayRule = {
   name: string;
   status: "pass" | "fail" | "warning";
   category?: string;
+  violationCode?: string;
   description: string;
+  evidence?: {
+    field?: string | null;
+    value?: unknown;
+    reason?: string;
+    required_metadata?: string;
+    match_confidence?: number;
+    machine_method?: string;
+    reference_date?: string;
+    raw_mfg_text?: string;
+    raw_expiry_text?: string;
+    bbox?: number[] | null;
+    confidence?: number;
+    minimum?: number | null;
+    maximum?: number | null;
+  };
 };
 
 const statusConfig: Record<
@@ -64,7 +80,9 @@ export default function CompliancePage() {
             name: rev.rule_name,
             status: "warning",
             category: rev.category ? rev.category.replace(/_/g, " ") : undefined,
+            violationCode: rev.violation_code || undefined,
             description: rev.message || "Manual officer verification required.",
+            evidence: rev.evidence,
           }));
 
           // Merge standard evaluated rules and review required rules
@@ -251,8 +269,54 @@ export default function CompliancePage() {
                           {rule.category}
                         </span>
                       )}
+                      {rule.violationCode && (
+                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/30">
+                          {rule.violationCode}
+                        </span>
+                      )}
+                      {rule.evidence?.bbox && (
+                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1">
+                          📐 Spatial Bounding Box
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1.5 leading-relaxed font-mono">{rule.description}</p>
+
+                    {/* Rich Evidence Telemetry Detail */}
+                    {rule.evidence && (
+                      <div className="mt-2.5 pt-2 border-t border-neutral-100 dark:border-neutral-800/80 flex flex-wrap gap-2 text-[11px] font-mono">
+                        {rule.evidence.raw_mfg_text && (
+                          <span className="px-2 py-1 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">
+                            <strong>Mfg:</strong> {rule.evidence.raw_mfg_text}
+                          </span>
+                        )}
+                        {rule.evidence.raw_expiry_text && (
+                          <span className="px-2 py-1 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">
+                            <strong>Expiry Text:</strong> {rule.evidence.raw_expiry_text}
+                          </span>
+                        )}
+                        {rule.evidence.value !== undefined && rule.evidence.value !== null && (
+                          <span className="px-2 py-1 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700">
+                            <strong>Detected:</strong> {String(rule.evidence.value)}
+                          </span>
+                        )}
+                        {rule.evidence.reason && (
+                          <span className="px-2 py-1 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                            <strong>Reason:</strong> {rule.evidence.reason.replace(/_/g, " ")}
+                          </span>
+                        )}
+                        {rule.evidence.required_metadata && (
+                          <span className="px-2 py-1 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                            <strong>Requires Meta:</strong> {rule.evidence.required_metadata}
+                          </span>
+                        )}
+                        {rule.evidence.confidence !== undefined && (
+                          <span className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            <strong>OCR Conf:</strong> {(rule.evidence.confidence * 100).toFixed(1)}%
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
                 {rule.status !== "pass" && (

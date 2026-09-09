@@ -117,25 +117,36 @@ export default function DashboardPage() {
   // Compute metrics from live history
   const totalScanned = history.length;
   
-  const compliantCount = history.filter((h) => (h.compliance_score ?? 0) >= 70).length;
+  const compliantCount = history.filter((h) => {
+    const s = String(h.status || "").toLowerCase();
+    return s.includes("compli") || s.includes("pass");
+  }).length;
 
-  const nonCompliantCount = history.filter((h) => (h.compliance_score ?? 0) < 70 && (h.compliance_score ?? 0) >= 40).length;
+  const nonCompliantCount = history.filter((h) => {
+    const s = String(h.status || "").toLowerCase();
+    return s.includes("non") || s.includes("warn") || s.includes("review");
+  }).length;
 
-  const criticalCount = history.filter((h) => (h.compliance_score ?? 0) < 40).length;
+  const criticalCount = history.filter((h) => {
+    const s = String(h.status || "").toLowerCase();
+    return s.includes("crit") || s.includes("fail");
+  }).length;
 
   const avgCompliance = history.length > 0
-    ? (history.reduce((sum, h) => sum + (h.compliance_score ?? 0), 0) / history.length).toFixed(1) + "%"
+    ? (history.reduce((sum, h) => sum + (Number(h.compliance_score) || 0), 0) / history.length).toFixed(1) + "%"
     : "0%";
 
   // Count this month's inspections
   const currentYearMonth = new Date().toISOString().slice(0, 7);
   const thisMonthCount = history.filter((h) => h.date && h.date.startsWith(currentYearMonth)).length;
 
-  // Render recent inspections from backend history
+  // Render recent inspections directly using fetched status
   const displayRecent = history.slice(0, 4).map((h) => {
+    const norm = String(h.status || "").toLowerCase();
     let statusKey = "compliant";
-    if (h.compliance_score < 40) statusKey = "critical";
-    else if (h.compliance_score < 70) statusKey = "non-compliant";
+    if (norm.includes("crit")) statusKey = "critical";
+    else if (norm.includes("non") || norm.includes("fail")) statusKey = "non-compliant";
+    else if (norm.includes("proc")) statusKey = "processing";
     return {
       id: h.inspection_id || (h as { _id?: string })._id || "UNKNOWN",
       product: h.product_name || "Unlabelled Packaging",

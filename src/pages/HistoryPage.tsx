@@ -112,7 +112,6 @@ export default function HistoryPage() {
                 {inspections.map((ins, i) => {
                   const s = resolveStatus(ins.status);
                   const Icon = s.icon;
-                  const score = ins.compliance_score;
                   const inspectionIdStr = String(ins.inspection_id || (ins as { _id?: string })._id || "UNKNOWN");
                   const idShort = inspectionIdStr.slice(-8).toUpperCase();
                   const dateStr = ins.date
@@ -124,6 +123,14 @@ export default function HistoryPage() {
                         minute: "2-digit",
                       })
                     : "—";
+
+                  const rawScore = ins.compliance_score;
+                  const numScore = rawScore != null
+                    ? typeof rawScore === "number"
+                      ? rawScore
+                      : parseFloat(String(rawScore).replace(/[^0-9.]/g, "")) || 0
+                    : null;
+                  const isCompliantStatus = s.label === "Compliant";
 
                   return (
                     <tr
@@ -153,21 +160,21 @@ export default function HistoryPage() {
                         </div>
                       </td>
                       <td className="px-5 py-3.5">
-                        {score != null ? (
+                        {numScore != null ? (
                           <div className="flex items-center gap-2">
                             <span
                               className={`text-sm font-bold font-mono ${
-                                score >= 70
+                                isCompliantStatus
                                   ? "text-emerald-600 dark:text-emerald-400"
                                   : "text-red-600 dark:text-red-400"
                               }`}
                             >
-                              {score}%
+                              {rawScore != null && String(rawScore).includes("%") ? rawScore : `${numScore}%`}
                             </span>
                             <div className="w-16 h-1.5 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden hidden sm:block">
                               <div
-                                className={`h-full rounded-full ${score >= 70 ? "bg-emerald-500" : "bg-red-500"}`}
-                                style={{ width: `${Math.min(100, Math.max(0, score))}%` }}
+                                className={`h-full rounded-full transition-all ${isCompliantStatus ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-red-500"}`}
+                                style={{ width: `${Math.min(100, Math.max(0, numScore))}%` }}
                               />
                             </div>
                           </div>
@@ -222,80 +229,95 @@ export default function HistoryPage() {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Holographic top status bar */}
-            <div
-              className={`absolute top-0 left-0 w-full h-1.5 ${
-                selected.compliance_score >= 70
-                  ? "bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.8)]"
-                  : "bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.8)]"
-              }`}
-            />
+            {(() => {
+              const rawModalScore = selected.compliance_score;
+              const modalNum = rawModalScore != null
+                ? typeof rawModalScore === "number"
+                  ? rawModalScore
+                  : parseFloat(String(rawModalScore).replace(/[^0-9.]/g, "")) || 0
+                : 0;
+              const modalPassed = resolveStatus(selected.status).label === "Compliant";
+              const displayModalScore = rawModalScore != null && String(rawModalScore).includes("%") ? rawModalScore : `${modalNum}%`;
 
-            {/* Modal header */}
-            <div className="flex items-center justify-between px-6 py-5 border-b border-neutral-200 dark:border-neutral-800">
-              <div>
-                <h3 className="text-base font-bold text-neutral-900 dark:text-white tracking-tight">
-                  {selected.product_name || "Unlabelled Product"}
-                </h3>
-                <p className="text-xs text-neutral-500 font-mono mt-0.5">
-                  ID: #{String(selected.inspection_id || (selected as { _id?: string })._id || "UNKNOWN").slice(-8).toUpperCase()}
-                </p>
-              </div>
-              <button
-                onClick={() => setSelected(null)}
-                className="w-8 h-8 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 flex items-center justify-center transition-colors"
-              >
-                <X className="w-4 h-4 text-neutral-400" />
-              </button>
-            </div>
+              return (
+                <>
+                  <div
+                    className={`absolute top-0 left-0 w-full h-1.5 ${
+                      modalPassed
+                        ? "bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.8)]"
+                        : "bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.8)]"
+                    }`}
+                  />
 
-            {/* Modal body */}
-            <div className="px-6 py-5 space-y-5">
-              <div className="flex items-center gap-4">
-                <div
-                  className={`text-4xl font-black font-mono tracking-tight ${
-                    selected.compliance_score >= 70
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : "text-red-600 dark:text-red-400"
-                  }`}
-                >
-                  {selected.compliance_score}%
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-neutral-900 dark:text-white">Statutory Rating</p>
-                  <p className="text-xs text-neutral-500 dark:text-neutral-400 font-mono mt-0.5">
-                    Logged: {new Date(selected.date).toLocaleString("en-IN")}
-                  </p>
-                </div>
-              </div>
+                  {/* Modal header */}
+                  <div className="flex items-center justify-between px-6 py-5 border-b border-neutral-200 dark:border-neutral-800">
+                    <div>
+                      <h3 className="text-base font-bold text-neutral-900 dark:text-white tracking-tight">
+                        {selected.product_name || "Unlabelled Product"}
+                      </h3>
+                      <p className="text-xs text-neutral-500 font-mono mt-0.5">
+                        ID: #{String(selected.inspection_id || (selected as { _id?: string })._id || "UNKNOWN").slice(-8).toUpperCase()}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setSelected(null)}
+                      className="w-8 h-8 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 flex items-center justify-center transition-colors"
+                    >
+                      <X className="w-4 h-4 text-neutral-400" />
+                    </button>
+                  </div>
 
-              {/* Progress bar */}
-              <div className="h-2 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${
-                    selected.compliance_score >= 70 ? "bg-emerald-500" : "bg-red-500"
-                  }`}
-                  style={{ width: `${selected.compliance_score}%` }}
-                />
-              </div>
+                  {/* Modal body */}
+                  <div className="px-6 py-5 space-y-5">
+                    <div className="flex items-center gap-4">
+                      <div
+                        className={`text-4xl font-black font-mono tracking-tight ${
+                          modalPassed
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : "text-red-600 dark:text-red-400"
+                        }`}
+                      >
+                        {displayModalScore}
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-neutral-900 dark:text-white">Statutory Rating</p>
+                        <p className="text-xs text-neutral-500 dark:text-neutral-400 font-mono mt-0.5">
+                          Logged: {new Date(selected.date).toLocaleString("en-IN")}
+                        </p>
+                      </div>
+                    </div>
 
-              {/* Quick links */}
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <Link
-                  to={`/inspection/${selected.inspection_id || (selected as { _id?: string })._id}/evidence`}
-                  className="flex items-center justify-center gap-2 p-3 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/50 hover:border-amber-400/50 text-xs font-semibold text-neutral-800 dark:text-neutral-200 transition-colors"
-                >
-                  <Eye className="w-4 h-4 text-amber-400" />
-                  Bounding Boxes
-                </Link>
-                <Link
-                  to={`/inspection/${selected.inspection_id || (selected as { _id?: string })._id}/compliance`}
-                  className="flex items-center justify-center gap-2 p-3 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/50 hover:border-amber-400/50 text-xs font-semibold text-neutral-800 dark:text-neutral-200 transition-colors"
-                >
-                  <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                  Rules & Violations
-                </Link>
-              </div>
-            </div>
+                    {/* Progress bar */}
+                    <div className="h-2 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          modalPassed ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-red-500"
+                        }`}
+                        style={{ width: `${Math.min(100, Math.max(0, modalNum))}%` }}
+                      />
+                    </div>
+
+                    {/* Quick links */}
+                    <div className="grid grid-cols-2 gap-3 pt-2">
+                      <Link
+                        to={`/inspection/${selected.inspection_id || (selected as { _id?: string })._id}/evidence`}
+                        className="flex items-center justify-center gap-2 p-3 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/50 hover:border-amber-400/50 text-xs font-semibold text-neutral-800 dark:text-neutral-200 transition-colors"
+                      >
+                        <Eye className="w-4 h-4 text-amber-400" />
+                        Bounding Boxes
+                      </Link>
+                      <Link
+                        to={`/inspection/${selected.inspection_id || (selected as { _id?: string })._id}/compliance`}
+                        className="flex items-center justify-center gap-2 p-3 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/50 hover:border-amber-400/50 text-xs font-semibold text-neutral-800 dark:text-neutral-200 transition-colors"
+                      >
+                        <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                        Rules & Violations
+                      </Link>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
 
             {/* Modal footer */}
             <div className="px-6 py-4 border-t border-neutral-200 dark:border-neutral-800 flex gap-3">

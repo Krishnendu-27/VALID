@@ -12,6 +12,7 @@ import HistoryPage from "@/pages/HistoryPage";
 
 import { useEffect } from "react";
 import { useThemeStore } from "@/store/themeStore";
+import Home from "./pages/Home";
 
 export default function App() {
   const theme = useThemeStore((s) => s.theme);
@@ -60,6 +61,10 @@ export default function App() {
         <Route
           path="/inspection/:id/report"
           element={<ProtectedRoute><ReportPage /></ProtectedRoute>}
+        />
+        <Route
+          path="/home"
+          element={<Home/>}
         />
 
         {/* Default redirect */}
